@@ -1,0 +1,66 @@
+import streamlit as st
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+
+# -----------------------------
+# Load & Prepare Data
+# -----------------------------
+df = pd.read_csv("loan_data.csv")  # your dataset path
+
+# Label Encoding
+le_education = LabelEncoder()
+le_self = LabelEncoder()
+le_status = LabelEncoder()
+
+df['Education'] = le_education.fit_transform(df['Education'])
+df['SelfEmployed'] = le_self.fit_transform(df['SelfEmployed'])
+df['LoanStatus'] = le_status.fit_transform(df['LoanStatus'])
+
+# Features & Target
+X = df[['ApplicantIncome', 'LoanAmount', 'CreditScore', 'Education', 'SelfEmployed']]
+y = df['LoanStatus']
+
+# Train-test split
+X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Model Training
+model = LogisticRegression()
+model.fit(X_train, y_train)
+
+# -----------------------------
+# Streamlit UI
+# -----------------------------
+st.title("💰 Loan Approval Predictor")
+st.write("Enter applicant details to check loan eligibility.")
+
+# User Inputs
+income = st.number_input("Applicant Income", min_value=0, value=50000)
+loan_amount = st.number_input("Loan Amount", min_value=0, value=150000)
+credit_score = st.number_input("Credit Score (300–850)", min_value=300, max_value=850, value=650)
+education = st.selectbox("Education", ("Graduate", "Not Graduate"))
+self_emp = st.selectbox("Self Employed", ("Yes", "No"))
+
+# Convert categorical input
+edu_val = le_education.transform([education])[0]
+self_val = le_self.transform([self_emp])[0]
+
+# Predict Button
+if st.button("Predict Loan Approval"):
+    user_data = [[income, loan_amount, credit_score, edu_val, self_val]]
+    prediction = model.predict(user_data)[0]
+    probability = model.predict_proba(user_data)[0][1]
+
+    if prediction == 1:
+        st.success("✅ Loan Approved")
+    else:
+        st.error("❌ Loan Not Approved")
+
+    st.write(f"*Approval Probability:* {round(probability * 100, 2)} %")
+
+# Show Model Accuracy
+accuracy = accuracy_score(y_test, model.predict(X_test))
+st.sidebar.write("### 📊 Model Accuracy")
+st.sidebar.write(f"{round(accuracy * 100, 2)} %")
